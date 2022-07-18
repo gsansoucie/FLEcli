@@ -46,6 +46,9 @@ func buildAdif(fullLog []LogLine, adifParams AdifParams) (adifList []string) {
 		adifLine.WriteString(adifElement("CALL", logLine.Call))
 		adifLine.WriteString(adifElement("QSO_DATE", adifDate(logLine.Date)))
 		adifLine.WriteString(adifElement("TIME_ON", logLine.Time))
+		// 17 Jul 2022 GAS End  Time Add
+		adifLine.WriteString(adifElement("TIME_OFF", logLine.EndTime))
+		
 		adifLine.WriteString(adifElement("BAND", logLine.Band))
 		adifLine.WriteString(adifElement("MODE", logLine.Mode))
 		if logLine.Frequency != "" {

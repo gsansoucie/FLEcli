@@ -65,7 +65,9 @@ func ValidatePota(inputStr string) (ref, errorMsg string) {
 	return wrongInputStr, errorMsg
 }
 
-var validGridRegexp = regexp.MustCompile("(?i)^[a-z]{2}[0-9]{2}([a-z]{2})?$")
+// 15 Jul 2022 GAS - Adding 8 char grid locators
+//var validGridRegexp = regexp.MustCompile("(?i)^[a-z]{2}[0-9]{2}([a-z]{2})?$")
+var validGridRegexp = regexp.MustCompile("(?i)^[a-z]{2}[0-9]{2}([a-z]{2})([0-9]{2})?$")
 
 // ValidateGridLocator verifies that the supplied is a valid Maidenhead locator reference
 // (either in 4 or 6 position). The returned grid case is normalized (first two letters
@@ -86,6 +88,10 @@ func ValidateGridLocator(grid string) (processedGrid, errorMsg string) {
 			//The third pair of characters to be forced lowercase
 			if (i == 4) || (i == 5) {
 				output.WriteString(strings.ToLower(string(c)))
+			}
+			//The fourth pair (numbers) are left alone
+			if(i == 6) || (i == 7){
+				output.WriteString(string(c))
 			}
 		}
 		return output.String(), ""

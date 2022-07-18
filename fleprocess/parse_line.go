@@ -44,6 +44,7 @@ type LogLine struct {
 	Frequency        string
 	Time             string
 	ActualTime       string //time actually recorded in FLE
+	EndTime			string	// 17 Jul 2022 GAS Added End Time
 	Call             string
 	Comment          string
 	QSLmsg           string
@@ -58,6 +59,14 @@ type LogLine struct {
 
 var regexpIsFullTime = regexp.MustCompile(`^[0-2]{1}[0-9]{3}$`)
 var regexpIsTimePart = regexp.MustCompile(`^[0-5]{1}[0-9]{1}$|^[1-9]{1}$`)
+// 16 Jul 2022 GAS I want a Time Off here and the best approach (sans passing through midnight) is to just add a -
+//								Which would need to be optional
+//								And this might work, a test to see if there is a start-end match first
+//								^([0-2]{1}[0-9]{3})(-)([-0-2]{1}[0-9]{3})$
+//var regexplsFullTimeStartEnd = regexp.MustCompile(`^([0-2]{1}[0-9]{3})(-)([-0-2]{1}[0-9]{3})$`)
+var regexplsFullTimeStartEnd = regexp.MustCompile(`^(?P<Start>[0-2]{1}[0-9]{3})(?P<Dash>-)(?P<End>[-0-2]{1}[0-9]{3})$`)
+
+
 var regexpIsOMname = regexp.MustCompile(`^@`)
 var regexpIsGridLoc = regexp.MustCompile(`^#`)
 var regexpIsRst = regexp.MustCompile(`^[\d]{1,3}$`)
@@ -93,6 +102,7 @@ func ParseLine(inputStr string, previousLine LogLine) (logLine LogLine, errorMsg
 	previousLine.GridLoc = ""
 	previousLine.Comment = ""
 	previousLine.ActualTime = ""
+	previousLine.EndTime = ""
 	logLine = previousLine
 
 	//TODO: what happens when we have <> or when there are multiple comments
@@ -188,8 +198,13 @@ func ParseLine(inputStr string, previousLine LogLine) (logLine LogLine, errorMsg
 			if (logLine.BandLowerLimit != 0.0) && (logLine.BandUpperLimit != 0.0) {
 				if (qrg >= logLine.BandLowerLimit) && (qrg <= logLine.BandUpperLimit) {
 					//Increase precision to half Khz if data is available
-					if len(khzPart[0]) > 4 { 
+					// 14 Jul 2022 GAS This is where I want to increase prcesion even more
+					//if len(khzPart[0]) > 4 { 
+					if len(khzPart[0]) > 5 { 
 						//The "." is part of the returned string
+						//logLine.Frequency = fmt.Sprintf("%.4f", qrg)
+						logLine.Frequency = fmt.Sprintf("%.5f", qrg)
+					}else if len(khzPart[0]) == 4 {
 						logLine.Frequency = fmt.Sprintf("%.4f", qrg)
 					} else {
 						logLine.Frequency = fmt.Sprintf("%.3f", qrg)
@@ -217,11 +232,39 @@ func ParseLine(inputStr string, previousLine LogLine) (logLine LogLine, errorMsg
 			}
 		}
 
+
+		// 16 Jul 2022 GAS StartEnd Test
+		if !isRightOfCall {
+				res := regexplsFullTimeStartEnd.FindStringSubmatch(element)
+				if(res != nil) {
+				// There are two groups we care about 
+				//for i, c := range element {
+					for i, _:= range res {
+					
+					if i == 1{
+						// Element 1 is Start Time
+						logLine.Time = string(res[i])
+						logLine.ActualTime = string(res[i])
+					}else if i == 3 {
+						// Element 3 is End Time
+						// Set the end time
+						logLine.EndTime = string(res[i])
+						//fmt.Println(res[i]);
+					}
+					// Element 2 is just the -, ignore away
+				}
+
+				continue
+			}
+		}
+
+
 		// Is it a "full" time ?
 		if !isRightOfCall {
 			if regexpIsFullTime.MatchString(element) {
 				logLine.Time = element
 				logLine.ActualTime = element
+				logLine.EndTime = element
 				continue
 			}
 
@@ -230,10 +273,12 @@ func ParseLine(inputStr string, previousLine LogLine) (logLine LogLine, errorMsg
 				if logLine.Time == "" {
 					logLine.Time = element
 					logLine.ActualTime = element
+					logLine.EndTime = element;
 				} else {
 					goodPart := logLine.Time[:len(logLine.Time)-len(element)]
 					logLine.Time = goodPart + element
 					logLine.ActualTime = goodPart + element
+					logLine.EndTime = logLine.ActualTime;
 				}
 				continue
 			}
